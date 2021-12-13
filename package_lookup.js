@@ -13,7 +13,15 @@
 const https = require('https');
 const fs = require("fs");
 var path = require('path');
-const fileName = process.argv.slice(2) && process.argv.slice(2)[0] != 'false' ? process.argv.slice(2)[0] : "./package.json";
+let fileName = process.argv.slice(2) && process.argv.slice(2)[0] != 'false' ? process.argv.slice(2)[0] : "./package.json";
+console.log(fileName,fileName.substring(-12),fileName.substring(-1));
+
+if (fileName.substring(-12) != "package.json") {
+    if (fileName.substring(-1) != '/' && fileName.substring(-1) != '\\') {
+        fileName += "/";
+    }
+    fileName += "package.json";
+}
 let packages = require(fileName);  //reads the local package.json if no file is passed
 let packageDir = path.parse(fileName).dir;
 let packageInfo = [];
@@ -22,21 +30,24 @@ let breakoutAdditional = process.argv.slice(2) && process.argv.slice(2)[1] == 'f
 
 
 const getAllPackages = async () => {
-    let vals = await Promise.all( 
-        Object.entries(packages.dependencies).map(p => 
-            getPackageData(p[0])
-            .then(res => {
-                packageInfo.push({
-                    name: p[0],
-                    version: p[1],
-                    ...res
-                });
-            })
-        )
-    ).then(r => {
-        writePackages();
-    });
-
+    if (packages.dependencies) {
+        let vals = await Promise.all( 
+            Object.entries(packages.dependencies).map(p => 
+                getPackageData(p[0])
+                .then(res => {
+                    packageInfo.push({
+                        name: p[0],
+                        version: p[1],
+                        ...res
+                    });
+                })
+            )
+        ).then(r => {
+            writePackages();
+        });
+    } else {
+        console.log("ERROR - No Dependencies Found!");
+    }
 }
 
 async function getPackageData(npmId) {
@@ -63,17 +74,19 @@ const leaf = (obj, path) => (path.split('.').reduce((value,el) => value && value
 function writePackages() {
     //quick and dirty html so no templating package is required.
     pHtml = "<html><head></head><body> <h3>Dependencies:</h3> <ul>" + 
-        packageInfo.map((p) => {
+        packageInfo.sort((a,b) => 
+            a.name > b.name
+        ).map((p) => {
             console.log(p.name,p.version,p.description);
             let li = '<li ' +
                 '> &nbsp;' +
                 '<a target="_blank" style="font-weight:bolder;color:black;" href="' + (p.homepage ? p.homepage : "#") + '"' + 
                 Object.entries(additionalFields).map(f => {
-                    return typeof leaf(p,f[1]) !== 'undefined' ? ' data-' + f[0] + '="' + leaf(p,f[1]) + '"' : ""
+                    return typeof leaf(p,f[1]) !== 'undefined' ? ' data-' + f[0] + '="' + leaf(p,f[1]).toString() + '"' : ""
                 }).join("") +
                 ' title="' + 
                 Object.entries(additionalFields).map(f => {
-                    return typeof leaf(p,f[1]) !== 'undefined' ? f[0] + ': ' + leaf(p,f[1]).replace('"','&quot;') + '\n' : ""
+                    return typeof leaf(p,f[1]) !== 'undefined' ? f[0] + ': ' + leaf(p,f[1]).toString().replace('"','&quot;') + '\n' : ""
                 }).join("") +                
                 '">' + p.name + '</a> ' +
                 '(' + p.version + '): ' + 
@@ -82,7 +95,7 @@ function writePackages() {
                     (
                         "<ul>" + 
                         Object.entries(additionalFields).map(f => {
-                            return typeof leaf(p,f[1]) !== 'undefined' ? '<li> ' + f[0] + ': ' + leaf(p,f[1]) + '</li>' : ""
+                            return typeof leaf(p,f[1]) !== 'undefined' ? '<li> ' + f[0] + ': ' + leaf(p,f[1]).toString() + '</li>' : ""
                         }).join("") +
                         "</ul>"
                     )

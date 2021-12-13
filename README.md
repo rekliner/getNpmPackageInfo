@@ -1,4 +1,4 @@
-# getNpmPackageInfo
+# npmPackageLookup
 Reads a package.json and generates an html doc with details on all packages from NPM.  
 Its made to be as simple as possible - uses only native node functions.
 
